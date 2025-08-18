@@ -22,7 +22,7 @@
     let tokenizer;
 
     // 初始化 Kuromoji
-    kuromoji.builder({ dicPath: "./dict/" }).build(function(err, _tokenizer) {
+    kuromoji.builder({ dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/" }).build(function(err, _tokenizer) {
       if (err) { console.error(err); return; }
       tokenizer = _tokenizer;
     });
@@ -52,3 +52,4 @@
 </body>
 
 </html>
+
