@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>日文假名標註工具</title>
+  <style>
+    body { font-family: sans-serif; margin: 40px; }
+    textarea { width: 100%; height: 100px; font-size: 16px; }
+    button { margin-top: 10px; padding: 5px 15px; font-size: 16px; }
+    .output { margin-top: 20px; font-size: 20px; line-height: 2; }
+    ruby rt { font-size: 12px; color: gray; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dist/kuromoji.js"></script>
+</head>
+<body>
+  <h2>日文假名標註工具（前端版）</h2>
+  <textarea id="inputText" placeholder="請輸入日文..."></textarea><br>
+  <button onclick="convert()">轉換</button>
+  <div class="output" id="output"></div>
+
+  <script>
+    let tokenizer;
+
+    // 初始化 Kuromoji
+    kuromoji.builder({ dicPath: "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/" }).build(function(err, _tokenizer) {
+      if (err) { console.error(err); return; }
+      tokenizer = _tokenizer;
+    });
+
+    function convert() {
+      const text = document.getElementById("inputText").value;
+      if (!tokenizer) {
+        alert("Tokenizer 尚未載入完成，請稍後再試。");
+        return;
+      }
+      const tokens = tokenizer.tokenize(text);
+      let result = "";
+
+      tokens.forEach(token => {
+        const surface = token.surface_form;
+        const reading = token.reading || "";
+        if (reading && surface !== reading) {
+          result += `<ruby>${surface}<rt>${reading}</rt></ruby>`;
+        } else {
+          result += surface;
+        }
+      });
+
+      document.getElementById("output").innerHTML = result;
+    }
+  </script>
+</body>
+</html>
