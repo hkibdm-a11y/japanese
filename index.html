@@ -1,60 +1,93 @@
-<script src="https://unpkg.com/kuromoji@0.1.3/dist/kuromoji.js"></script>
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <title>日文假名標註工具</title>
-<script src="https://unpkg.com/kuromoji@0.1.3/dist/kuromoji.js"></script>
-  <style>
-    body { font-family: sans-serif; margin: 40px; }
-    textarea { width: 100%; height: 100px; font-size: 16px; }
-    button { margin-top: 10px; padding: 5px 15px; font-size: 16px; }
-    .output { margin-top: 20px; font-size: 20px; line-height: 2; }
-    ruby rt { font-size: 12px; color: gray; }
-  </style>
+    <meta charset="UTF-8">
+    <title>中日文假名／拼音／注音 線上轉換</title>
+    <style>
+        body { font-family: Segoe UI,Arial,sans-serif; background: #f9f9f9; }
+        .main { background: #fff; margin: 2em auto; padding: 2em; border-radius:10px; max-width: 640px; box-shadow:0 0 16px #ddd; }
+        h2 { text-align: center; font-weight: 400; color: #155;}
+        textarea { width:100%; min-height: 100px; font-size:1.15em; padding: .5em; }
+        .options { margin: 1em 0; }
+        .options label { margin-right: 1em; }
+        .btn { background:#228be6; color:#fff; border:0; border-radius:4px; padding:8px 18px; font-size:1em; cursor:pointer; }
+        .result { margin:2em 0; background:#f5f6fa; border-radius:5px; padding: 1em; }
+        ruby rt { font-size:0.85em; color:#e44; font-style:italic;}
+        .loading { color:#888; margin-top:1em;}
+        .setting { margin:1em 0; color:#555;}
+    </style>
 </head>
 <body>
-  <h2>日文假名標註工具（前端版）</h2>
-  <textarea id="inputText" placeholder="請輸入日文..."></textarea><br>
-  <button onclick="convert()">轉換</button>
-  <div class="output" id="output"></div>
-
-  <script>
-    let tokenizer;
-
-    // 初始化 Kuromoji
-   kuromoji.builder({ dicPath: "https://unpkg.com/kuromoji@0.1.3/dict/" })
-  .build(function (err, _tokenizer) {
-    if (err) { console.error(err); return; }
-    tokenizer = _tokenizer;
-    document.getElementById("status").innerText = "Tokenizer 已載入 ✅";
-  });
-    function convert() {
-      const text = document.getElementById("inputText").value;
-      if (!tokenizer) {
-        alert("Tokenizer 尚未載入完成，請稍後再試。");
-        return;
-      }
-      const tokens = tokenizer.tokenize(text);
-      let result = "";
-
-      tokens.forEach(token => {
-        const surface = token.surface_form;
-        const reading = token.reading || "";
-        if (reading && surface !== reading) {
-          result += `<ruby>${surface}<rt>${reading}</rt></ruby>`;
-        } else {
-          result += surface;
+    <div class="main">
+        <h2>中日文假名／拼音／注音 線上轉換</h2>
+        <div class="setting">
+            <label>模式選擇：
+                <select id="mode">
+                    <option value="jp_furigana">日文標註Furigana</option>
+                    <option value="jp_romaji">日文標註羅馬字</option>
+                    <option value="zh_pinyin">中文標註拼音</option>
+                    <option value="zh_bopomofo">中文標註注音符號</option>
+                </select>
+            </label>
+        </div>
+        <textarea id="inputText" placeholder="請輸入日文或中文（可多行）"></textarea>
+        <div style="margin:1em 0;">
+            <button class="btn" onclick="doConvert()">轉換</button>
+        </div>
+        <div class="loading" id="loading" style="display:none;">正在處理...</div>
+        <div class="result" id="result"></div>
+        <div style="font-size:.92em; color:#888;">Powered by Yahoo! JAPAN かな漢字変換 API &amp; 開源拼音庫</div>
+    </div>
+    <script>
+        function doConvert() {
+            var mode = document.getElementById('mode').value;
+            var txt = document.getElementById('inputText').value.trim();
+            if (!txt) return alert("請輸入要轉換的文字！");
+            document.getElementById('loading').style.display = '';
+            document.getElementById('result').innerHTML = '';
+            let lang = mode.startsWith('jp') ? 'jp' : 'zh';
+            fetch('/convert', {
+                method:'POST',
+                headers: { 'Content-Type':'application/json' },
+                body: JSON.stringify({
+                    text: txt,
+                    lang: lang,
+                    mode: mode
+                })
+            })
+            .then(r=>r.json())
+            .then(data=>{
+                document.getElementById('loading').style.display = 'none';
+                let out = '';
+                if (mode == 'jp_furigana' && data.furigana) {
+                    out += data.furigana.map(([kanji, kana]) => 
+                        `<ruby>${kanji}<rt>${kana}</rt></ruby>`).join('');
+                }
+                else if (mode == 'jp_romaji' && data.roma) {
+                    out += `<div style='padding:0.5em;'>${data.roma}</div>`;
+                }
+                else if (mode == 'zh_pinyin' && data.pinyin) {
+                    data.pinyin.forEach(([word,py])=>{
+                        out += `<span><b>${word}</b><sub>${py}</sub></span> `;
+                    });
+                }
+                else if (mode == 'zh_bopomofo' && data.bopo) {
+                    data.bopo.forEach(([word,bp])=>{
+                        out += `<span><b>${word}</b><sub>${bp}</sub></span> `;
+                    });
+                }
+                else if(data.err) {
+                    out += '發生錯誤：' + data.err;
+                } else {
+                    out += '無法處理輸入內容，請確認語言或內容格式';
+                }
+                document.getElementById('result').innerHTML = out;
+            })
+            .catch(e=>{
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('result').textContent = "伺服器或網路暫時無法連線";
+            });
         }
-      });
-
-      document.getElementById("output").innerHTML = result;
-    }
-  </script>
+    </script>
 </body>
-
 </html>
-
-
-
-
